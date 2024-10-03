@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+         http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+<!-- Created by igraph -->
+  <key id="v_name" for="node" attr.name="name" attr.type="string"/>
+  <key id="v_email_id_sin_arroba" for="node" attr.name="email_id_sin_arroba" attr.type="string"/>
+  <key id="v_lastName" for="node" attr.name="lastName" attr.type="string"/>
+  <key id="v_status.x" for="node" attr.name="status.x" attr.type="string"/>
+  <key id="v_nombre_completo" for="node" attr.name="nombre_completo" attr.type="string"/>
+  <key id="v_status.y" for="node" attr.name="status.y" attr.type="string"/>
+  <key id="v_role" for="node" attr.name="role" attr.type="string"/>
+  <key id="v_community" for="node" attr.name="community" attr.type="double"/>
+  <key id="e_weight" for="edge" attr.name="weight" attr.type="double"/>
+  <graph id="G" edgedefault="undirected">
+    <node id="n0">
+      <data key="v_name">albert.meyers@enron.com</data>
+      <data key="v_email_id_sin_arroba">albert.meyers</data>
+      <data key="v_lastName">Meyers</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">Albert Meyers</data>
+      <data key="v_status.y">Employee</data>
+      <data key="v_role">Specialist</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n1">
+      <data key="v_name">bill.williams@enron.com</data>
+      <data key="v_email_id_sin_arroba">bill.williams</data>
+      <data key="v_lastName">Williams</data>
+      <data key="v_status.x">N/A</data>
+      <data key="v_nombre_completo">xxx</data>
+      <data key="v_status.y"></data>
+      <data key="v_role"></data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n2">
+      <data key="v_name">cara.semperger@enron.com</data>
+      <data key="v_email_id_sin_arroba">cara.semperger</data>
+      <data key="v_lastName">Semperger</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">Cara Semperger</data>
+      <data key="v_status.y">Employee</data>
+      <data key="v_role">Senior Analyst Cash</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n3">
+      <data key="v_name">craig.dean@enron.com</data>
+      <data key="v_email_id_sin_arroba">craig.dean</data>
+      <data key="v_lastName">Dean</data>
+      <data key="v_status.x">Trader</data>
+      <data key="v_nombre_completo">Craig Dean</data>
+      <data key="v_status.y">Trader</data>
+      <data key="v_role"></data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n4">
+      <data key="v_name">diana.scholtes@enron.com</data>
+      <data key="v_email_id_sin_arroba">diana.scholtes</data>
+      <data key="v_lastName">Scholtes</data>
+      <data key="v_status.x">Trader</data>
+      <data key="v_nombre_completo">Diana Scholtes</data>
+      <data key="v_status.y">Trader</data>
+      <data key="v_role"></data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n5">
+      <data key="v_name">eric.linder@enron.com</data>
+      <data key="v_email_id_sin_arroba">eric.linder</data>
+      <data key="v_lastName">Linder</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">NA</data>
+      <data key="v_status.y">NA</data>
+      <data key="v_role">NA</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n6">
+      <data key="v_name">geir.solberg@enron.com</data>
+      <data key="v_email_id_sin_arroba">geir.solberg</data>
+      <data key="v_lastName">Solberg</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">Geir Solberg</data>
+      <data key="v_status.y">Employee</data>
+      <data key="v_role">Analyst</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n7">
+      <data key="v_name">holden.salisbury@enron.com</data>
+      <data key="v_email_id_sin_arroba">holden.salisbury</data>
+      <data key="v_lastName">Salisbury</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">Holden Salisbury</data>
+      <data key="v_status.y">Employee</data>
+      <data key="v_role">Cash Analyst</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n8">
+      <data key="v_name">kate.symes@enron.com</data>
+      <data key="v_email_id_sin_arroba">kate.symes</data>
+      <data key="v_lastName">Symes</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">Kate Symes</data>
+      <data key="v_status.y">Employee</data>
+      <data key="v_role"></data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n9">
+      <data key="v_name">lisa.gang@enron.com</data>
+      <data key="v_email_id_sin_arroba">lisa.gang</data>
+      <data key="v_lastName">Gang</data>
+      <data key="v_status.x">N/A</data>
+      <data key="v_nombre_completo">xxx</data>
+      <data key="v_status.y"></data>
+      <data key="v_role"></data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n10">
+      <data key="v_name">mark.guzman@enron.com</data>
+      <data key="v_email_id_sin_arroba">mark.guzman</data>
+      <data key="v_lastName">Guzman</data>
+      <data key="v_status.x">Managing Director</data>
+      <data key="v_nombre_completo">NA</data>
+      <data key="v_status.y">NA</data>
+      <data key="v_role">NA</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n11">
+      <data key="v_name">matt.motley@enron.com</data>
+      <data key="v_email_id_sin_arroba">matt.motley</data>
+      <data key="v_lastName">Motley</data>
+      <data key="v_status.x">Director</data>
+      <data key="v_nombre_completo">Matthew Motley</data>
+      <data key="v_status.y">Director</data>
+      <data key="v_role"></data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n12">
+      <data key="v_name">monika.causholli@enron.com</data>
+      <data key="v_email_id_sin_arroba">monika.causholli</data>
+      <data key="v_lastName">Causholli</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">Monika Causholli</data>
+      <data key="v_status.y">Employee</data>
+      <data key="v_role">Analyst Risk Management</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n13">
+      <data key="v_name">phillip.platter@enron.com</data>
+      <data key="v_email_id_sin_arroba">phillip.platter</data>
+      <data key="v_lastName">Platter</data>
+      <data key="v_status.x">Employee</data>
+      <data key="v_nombre_completo">Phillip Platter</data>
+      <data key="v_status.y">Employee</data>
+      <data key="v_role">Sr.Specialist</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n14">
+      <data key="v_name">ryan.slinger@enron.com</data>
+      <data key="v_email_id_sin_arroba">ryan.slinger</data>
+      <data key="v_lastName">Slinger</data>
+      <data key="v_status.x">Trader</data>
+      <data key="v_nombre_completo">Ryan Slinger</data>
+      <data key="v_status.y">Trader</data>
+      <data key="v_role"></data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n15">
+      <data key="v_name">sean.crandall@enron.com</data>
+      <data key="v_email_id_sin_arroba">sean.crandall</data>
+      <data key="v_lastName">Crandall</data>
+      <data key="v_status.x">Director</data>
+      <data key="v_nombre_completo">NA</data>
+      <data key="v_status.y">NA</data>
+      <data key="v_role">NA</data>
+      <data key="v_community">1</data>
+    </node>
+    <node id="n16">
+      <data key="v_name">steven.merris@enron.com</data>
+      <data key="v_email_id_sin_arroba">steven.merris</data>
+      <data key="v_lastName">Merris</data>
+      <data key="v_status.x">N/A</data>
+      <data key="v_nombre_completo">NA</data>
+      <data key="v_status.y">NA</data>
+      <data key="v_role">NA</data>
+      <data key="v_community">1</data>
+    </node>
+    <edge source="n0" target="n1">
+      <data key="e_weight">14</data>
+    </edge>
+    <edge source="n1" target="n2">
+      <data key="e_weight">12</data>
+    </edge>
+    <edge source="n0" target="n3">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n1" target="n3">
+      <data key="e_weight">36</data>
+    </edge>
+    <edge source="n2" target="n3">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n1" target="n4">
+      <data key="e_weight">11</data>
+    </edge>
+    <edge source="n2" target="n4">
+      <data key="e_weight">109</data>
+    </edge>
+    <edge source="n1" target="n5">
+      <data key="e_weight">27</data>
+    </edge>
+    <edge source="n1" target="n6">
+      <data key="e_weight">42</data>
+    </edge>
+    <edge source="n2" target="n6">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n3" target="n6">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n5" target="n6">
+      <data key="e_weight">4</data>
+    </edge>
+    <edge source="n1" target="n7">
+      <data key="e_weight">13</data>
+    </edge>
+    <edge source="n2" target="n7">
+      <data key="e_weight">53</data>
+    </edge>
+    <edge source="n3" target="n7">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n4" target="n7">
+      <data key="e_weight">9</data>
+    </edge>
+    <edge source="n6" target="n7">
+      <data key="e_weight">7</data>
+    </edge>
+    <edge source="n1" target="n8">
+      <data key="e_weight">46</data>
+    </edge>
+    <edge source="n2" target="n8">
+      <data key="e_weight">73</data>
+    </edge>
+    <edge source="n3" target="n8">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n4" target="n8">
+      <data key="e_weight">33</data>
+    </edge>
+    <edge source="n6" target="n8">
+      <data key="e_weight">7</data>
+    </edge>
+    <edge source="n7" target="n8">
+      <data key="e_weight">16</data>
+    </edge>
+    <edge source="n1" target="n9">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n2" target="n9">
+      <data key="e_weight">53</data>
+    </edge>
+    <edge source="n7" target="n9">
+      <data key="e_weight">10</data>
+    </edge>
+    <edge source="n8" target="n9">
+      <data key="e_weight">14</data>
+    </edge>
+    <edge source="n1" target="n10">
+      <data key="e_weight">33</data>
+    </edge>
+    <edge source="n2" target="n10">
+      <data key="e_weight">5</data>
+    </edge>
+    <edge source="n6" target="n10">
+      <data key="e_weight">5</data>
+    </edge>
+    <edge source="n7" target="n10">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n8" target="n10">
+      <data key="e_weight">19</data>
+    </edge>
+    <edge source="n1" target="n11">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n2" target="n11">
+      <data key="e_weight">4</data>
+    </edge>
+    <edge source="n4" target="n11">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n8" target="n11">
+      <data key="e_weight">24</data>
+    </edge>
+    <edge source="n2" target="n12">
+      <data key="e_weight">3</data>
+    </edge>
+    <edge source="n6" target="n12">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n7" target="n12">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n8" target="n12">
+      <data key="e_weight">3</data>
+    </edge>
+    <edge source="n9" target="n12">
+      <data key="e_weight">1</data>
+    </edge>
+    <edge source="n10" target="n12">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n2" target="n13">
+      <data key="e_weight">6</data>
+    </edge>
+    <edge source="n4" target="n13">
+      <data key="e_weight">5</data>
+    </edge>
+    <edge source="n7" target="n13">
+      <data key="e_weight">4</data>
+    </edge>
+    <edge source="n8" target="n13">
+      <data key="e_weight">21</data>
+    </edge>
+    <edge source="n10" target="n13">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n12" target="n13">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n0" target="n14">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n1" target="n14">
+      <data key="e_weight">44</data>
+    </edge>
+    <edge source="n3" target="n14">
+      <data key="e_weight">8</data>
+    </edge>
+    <edge source="n4" target="n14">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n5" target="n14">
+      <data key="e_weight">9</data>
+    </edge>
+    <edge source="n6" target="n14">
+      <data key="e_weight">13</data>
+    </edge>
+    <edge source="n8" target="n14">
+      <data key="e_weight">11</data>
+    </edge>
+    <edge source="n10" target="n14">
+      <data key="e_weight">7</data>
+    </edge>
+    <edge source="n1" target="n15">
+      <data key="e_weight">6</data>
+    </edge>
+    <edge source="n2" target="n15">
+      <data key="e_weight">71</data>
+    </edge>
+    <edge source="n4" target="n15">
+      <data key="e_weight">81</data>
+    </edge>
+    <edge source="n8" target="n15">
+      <data key="e_weight">21</data>
+    </edge>
+    <edge source="n11" target="n15">
+      <data key="e_weight">4</data>
+    </edge>
+    <edge source="n14" target="n15">
+      <data key="e_weight">2</data>
+    </edge>
+    <edge source="n1" target="n16">
+      <data key="e_weight">29</data>
+    </edge>
+    <edge source="n14" target="n16">
+      <data key="e_weight">6</data>
+    </edge>
+  </graph>
+</graphml>

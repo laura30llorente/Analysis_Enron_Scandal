@@ -1,0 +1,1829 @@
+---
+title: "SNA SOBRE CASO ENRON"
+author: "Laura Llorente Martínez"
+date: "2024-05-02 para la asignatura BAIN-2024 @U-TAD"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+# Configuración de opciones para knitr:
+
+# Establecemos la opción 'echo' a TRUE: el código fuente R se mostrará en el informe generado, lo que permite ver el código fuente junto con los resultados en el documento
+# Establecemos las opciones 'warning' y 'message' a FALSE: no se mostrarán advertencias ni mensajes en el documento
+```
+
+![Portada Caso ENRON](Entrega/Imágenes/portada.webp)
+
+# Instalación y Carga de Paquetes Necesarios, Directorio de Trabajo
+
+Cargamos librerías necesarias y establecemos el directorio de trabajo:
+
+```{r}
+
+library(igraph)      # Para el manejo de grafos
+library(tidyverse)   # Para manipulación de datos
+library(tidytext)    # Para el análisis de texto
+library(dplyr)       # Para manipulación de datos
+library(ggplot2)     # Para visualización de datos
+
+# Directorio de trabajo
+setwd("D:/Laura - UTAD/Tercero/Segundo cuatrimestre/Búsqueda y Análisis de la Información/Tareas/Tarea 2")
+
+```
+
+# Lectura de datasets de nodos y enlaces y carga de datos para la preparación del grafo ENRON
+
+Cargamos los datos necesarios para el estudio del caso Enron:
+
+| El caso Enron se refiere al colapso y escándalo financiero de Enron Corporation, una empresa estadounidense de energía que tenía su sede en Houston (Texas). Este escándalo salió a la luz en octubre de 2001 y es uno de los más grandes y notorios casos de fraude y corrupción corporativa en la historia.
+
+```{r}
+
+# Cargamos el archivo enron.RData
+load("./SNA_talleR_muRcia-main/enron.RData")
+
+# Cargamos el archivo edges_w_message.RData
+load("./SNA_talleR_muRcia-main/edges_w_message/edges_w_message.RData")
+
+```
+
+Exploramos la estructura de los datos cargados para entender mejor lo
+que contienen:
+
+```{r}
+
+# Mostrar la estructura del dataframe de enlaces para revisar las columnas y tipos de datos
+str(edges)
+
+# Corregimos el nombre de la columna 'receiver' que estaba mal escrito
+names(edges)[2] <- "receiver"
+str(edges)
+
+# Exploramos la estructura de los demás dataframes cargados
+str(edges.full)
+str(nodes)
+
+# Mostramos los nombres de las columnas del dataframe 'nodes' para entender la estructura de los datos
+names(nodes)
+
+# Contamos el número de enlaces
+nrow(edges.full)
+
+# Convertimos la columna 'date' del dataframe 'edges.full' a formato POSIXct para facilitar la manipulación y análisis de fechas
+edges.full$date.R <- as.POSIXct(edges.full$date)
+
+# Generamos un resumen de las fechas convertidas
+summary(edges.full$date.R)
+
+```
+
+# Creación del grafo
+
+Agregamos información sobre los roles de los empleados desde un archivo
+externo y ajustamos los nombres de las columnas:
+
+```{r}
+
+# Leemos el archivo de roles 
+roles <- read.table("./SNA_talleR_muRcia-main/roles.txt", sep = "|", header = FALSE, fill = TRUE)
+
+# Mostramos las primeras filas del dataframe 'roles' para obtener una vista preliminar de los datos
+head(roles)
+
+# Establecemos los nombres de las columnas
+names(roles) <- c("email_id_sin_arroba", "nombre_completo", "status", "role")
+
+# Eliminamos el dominio '@enron.com' de los ID de email en el dataframe de nodos
+nodes$email_id_sin_arroba <- gsub("@enron.com", "", nodes$Email_id)
+
+```
+
+```{r}
+
+# Fusionamos los dataframes de nodos y roles para enriquecer la información de los nodos
+nodes_rich <- merge(nodes, roles, by = "email_id_sin_arroba", all.x = TRUE, all.y = FALSE)
+
+# Mostramos la estructura del dataframe 'nodes_rich'
+str(nodes_rich)
+
+# Abrimos una ventana de visualización interactiva para el dataframe 'nodes_rich'
+View(nodes_rich)
+
+# Creamos una tabla de contingencia para comparar las columnas 'status.x' y 'status.y' en 'nodes_rich'
+table(nodes_rich$status.x, nodes_rich$status.y)
+
+```
+
+Creamos un grafo dirigido usando los datos de nodos y enlaces:
+
+```{r}
+
+# Reordenamiento de columnas en 'nodes_rich' 
+    # 2 indica que la segunda columna del dataframe original se moverá a la primera posición
+    # 1 significa que la primera columna del dataframe original se moverá a la segunda posición
+    # 3:length(names(nodes_rich)) conserva todas las demás columnas en su orden original a partir de la tercera posición
+nodes_rich <- nodes_rich[, 
+                         c(2,
+                           1,
+                           3:length(names(nodes_rich)))]
+
+# Volvemos a crear el grafo después de estos cambios
+network.full <- graph.data.frame(edges.full[,c("sender",
+                                               "receiver",
+                                               "type",
+                                               "date",
+                                               "subject")],
+                                 directed = TRUE,
+                                 vertices = nodes_rich)
+
+```
+
+Propiedades del grafo que hemos creado:
+
+```{r}
+
+# Clase del objeto de grafo 
+class(network.full)
+
+# Resumen de las propiedades del grafo
+summary(network.full)
+
+# Accedemos a los primeros 10 nodos del grafo 'network.full' para inspeccionar sus atributos y etiquetas
+V(network.full)[1:10]
+
+# Accedemos a las primeras 10 aristas del grafo 'network.full' para ver cómo están conectados los nodos
+E(network.full)[1:10]
+
+# Creamos una tabla de contingencia para analizar la distribución de la variable 'status.x' entre los nodos del grafo: cuántos nodos hay en cada estado específico dentro del grafo
+table(V(network.full)$status.x)
+
+# Creamos una tabla de contingencia para analizar la distribución de la variable 'role' entre los nodos del grafo: cuántos nodos desempeñan cada rol específico dentro del grafo
+table(V(network.full)$role)
+
+```
+
+Exportamos el grafo en formato GraphML para su posterior uso como con
+Gephi:
+
+```{r}
+
+write.graph(network.full, file = "network_enron_fechas.graphml", format = "graphml")
+
+# Guardamos el directorio de trabajo
+save.image("00_grafo_base.rda")
+
+```
+
+Dividimos los datos de correos electrónicos en subgrafos basados en
+intervalos de tiempo, para analizar la evolución de las interacciones de
+correo electrónico a lo largo del tiempo:
+
+```{r}
+
+# Definimos los intervalos de tiempo como listas de fechas de inicio y fin
+timeframes <- list(c("2001-01-01", "2001-07-01"), c("2001-07-02", "2001-12-31"))
+
+# Creamos subgrafos para cada intervalo de tiempo
+subgraphs <- lapply(timeframes, function(dates) {
+  start_date <- as.Date(dates[1])
+  end_date <- as.Date(dates[2])
+  
+  # Obtenemos los índices de las aristas en el rango de fechas
+  edge_ids <- which(E(network.full)$date >= start_date & E(network.full)$date <= end_date)
+  
+  # Obtenemos los vértices asociados con estas aristas
+  vertex_ids <- unique(c(ends(network.full, edge_ids)))
+  
+  # Creamos el subgrafo con los vértices asociados
+  subgraph <- induced_subgraph(network.full, vids = vertex_ids)
+  
+  return(subgraph)
+})
+
+# Inspeccionamos los subgrafos
+lapply(subgraphs, summary)
+```
+
+Las fechas "2001-01-01" y "2001-07-01" marcan el inicio y el final del
+primer semestre del año 2001, respectivamente. Las fechas "2001-07-02" y
+"2001-12-31" representan el segundo semestre del año 2001. Estas fechas
+son importantes en el caso Enron debido a que en ese período de tiempo
+se produjeron una serie de eventos significativos relacionados con el
+escándalo de Enron:
+
+-   Enron enfrentó una creciente presión financiera y regulatoria.
+
+-   Se descubrieron irregularidades contables y financieras
+    significativas en las operaciones de Enron.
+
+-   El 2 de diciembre de 2001, Enron se declaró en bancarrota, lo que
+    marcó un hito importante en el escándalo corporativo y financiero
+    más grande en la historia de Estados Unidos hasta ese momento.
+
+# Métricas globales del grafo
+
+## Diámetro
+
+El diámetro de una red es la mayor distancia geodésica (longitud del
+camino más corto entre dos nodos) en la red. En igraph, `diameter()`
+devuelve la distancia, mientras que `get_diameter()` devuelve los nodos
+a lo largo del primer camino encontrado de esa distancia.
+
+```{r}
+
+# Los pesos de las aristas se usan por defecto, a menos que se establezcan en NA
+diameter(network.full,
+         weights=NA)
+diameter(network.full, 
+         directed=FALSE)
+
+# `get_diameter()` devuelve una secuencia de vértices
+diam <- get_diameter(network.full, directed=TRUE)
+diam
+
+# Devolvemos la clase del objeto 'diam' para confirmar que es una secuencia de vértices de igraph
+class(diam)
+
+# Convertimos la secuencia de vértices 'diam' a un vector de índices numéricos
+as.vector(diam)
+
+# Devolvemos los vértices más lejanos entre sí en el grafo
+farthest_vertices(network.full)  
+
+```
+
+## Densidad
+
+La proporción de aristas presentes de todas las posibles aristas en la
+red.
+
+```{r}
+
+# Calculamos la densidad del grafo 'network.full', excluyendo los bucles (loops) en el cálculo
+edge_density(network.full, loops=FALSE)
+
+# Calculamos la densidad de la red dirigida 'network.full' de manera manual, excluyendo bucles y considerando la dirección de las aristas
+ecount(network.full)/(vcount(network.full)*(vcount(network.full)-1))
+
+```
+
+## Reciprocidad
+
+La proporción de lazos reciprocados (para una red dirigida).
+
+```{r}
+
+# Calculamos y devolvemos la reciprocidad en el grafo, que es la proporción de aristas que son bidireccionales
+reciprocity(network.full)
+
+# Realizamos un censo de díadas y clasificamos las relaciones entre nodos en mutuas, asimétricas y nulas
+dyad_census(network.full)
+
+# Sumamos el total de díadas mutuas, asimétricas y nulas para obtener el total de pares de nodos en el grafo
+sum_dyads <- 
+  dyad_census(network.full)$mut + 
+  dyad_census(network.full)$asym + 
+  dyad_census(network.full)$null
+
+# Calculamos la proporción de lazos reciprocados respecto al total de lazos dirigidos
+reciprocity(network.full, mode = "ratio")
+
+```
+
+## Transitividad
+
+global - relación de triángulos (dirección ignorada) a tríos conectados.
+
+local - relación de triángulos a tríos conectados de los cuales cada
+vértice es parte.
+
+```{r}
+
+# Calculamos la transitividad global de la red, tratando la red como no dirigida
+transitivity(network.full, type="global")
+
+# Calculamos la transitividad global de la red después de convertir la red dirigida en una red no dirigida, colapsando las aristas bidireccionales en una sola
+transitivity(as.undirected(network.full, mode="collapse"))
+
+# Calculamos la transitividad local para cada nodo y devolvemos el promedio de estos valores para toda la red
+transitivity(network.full, type="local")
+
+# Realizamos un censo de tríadas en la red dirigida para clasificar todas las configuraciones posibles de tríadas según la dirección de las conexiones
+triad_census(network.full)
+
+```
+
+# Métricas individuales SNA del grafo
+
+Usamos igraph para obtener los caminos más cortos entre dos nodos
+específicos:
+
+```{r}
+
+# Encontramos el camino más corto entre Albert Meyers y Thomas Martin
+# Thomas Martin --> Vicepresidente 
+# Albert Meyers --> especialista
+get.shortest.paths(from = V(network.full)$lastName == "Meyers",
+                   to = V(network.full)$lastName == "Martin",
+                   graph = network.full)
+
+# Encontramos los índices de los vértices
+meyers_index <- which(V(network.full)$lastName == "Meyers")
+martin_index <- which(V(network.full)$lastName == "Martin")
+
+# Mostramos información de los nodos para Meyers y Martin
+nodes[c(meyers_index, martin_index),]
+
+```
+
+## Medidas de centralidad (Centrality measures)
+
+Las medidas de centralidad son métricas utilizadas en el análisis de
+redes para determinar la importancia o el prestigio de los nodos dentro
+de una red. Estas medidas ayudan a identificar los nodos más
+influyentes, los puntos críticos de comunicación, o los intermediarios
+clave en la red.
+
+### Centralidad de Grado (Degree)
+
+Mide cuántas conexiones (aristas) tiene un nodo.
+
+```{r}
+
+# Asignamos el dataframe nodes_rich al dataframe original nodes para usarlo después
+nodes <- nodes_rich
+
+# Calculamos el grado total de cada nodo en el grafo
+# El grado total representa el número total de conexiones (entrantes y salientes) para cada nodo
+nodes$degree_total <- degree(network.full, 
+                             v = V(network.full), 
+                             mode = "total")
+
+# Calculamos el grado entrante de cada nodo
+# El grado entrante cuenta cuántas aristas entran a cada nodo
+nodes$degree_in <- degree(network.full, 
+                          v = V(network.full), 
+                          mode = "in")
+
+# Calculamos el grado saliente de cada nodo
+# El grado saliente cuenta cuántas aristas salen de cada nodo
+nodes$degree_out <- degree(network.full, 
+                           v = V(network.full), 
+                           mode = "out")
+
+# Visualizamos los top 20 nodos con mayor grado total
+head(nodes[order(nodes$degree_total,
+           decreasing = TRUE),
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+# Visualizamos los top 20 nodos con mayor grado entrante
+head(nodes[order(nodes$degree_in,
+                 decreasing = TRUE),
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+# Visualizamos los top 20 nodos con mayor grado saliente
+head(nodes[order(nodes$degree_out,
+                 decreasing = TRUE),
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+# Alternativamente, asignamos directamente los grados como atributos de los vértices en el grafo
+
+# Añadimos el grado saliente como un atributo directamente en cada vértice del grafo
+V(network.full)$outdegree <- degree(network.full, mode = "out")
+
+# Añadimos el grado entrante como un atributo directamente en cada vértice del grafo
+V(network.full)$indegree <- degree(network.full, mode = "in")
+
+# Añadimos el grado total como un atributo directamente en cada vértice del grafo
+V(network.full)$degree <- degree(network.full, mode = "all")
+
+```
+
+### Centralidad de tamaño de vecindario (Reach, neighborhood.size)
+
+Medida de la capacidad de un nodo para conectar con otros nodos dentro
+de un cierto número de pasos.
+
+```{r}
+
+# Agregamos al dataframe 'nodes' una nueva columna 'reach_2_step' que calcula el tamaño del vecindario
+nodes$reach_2_step <- 
+  neighborhood.size(network.full, 
+                    order = 2, # Queremos alcanzar hasta 2 pasos de distancia
+                    nodes = V(network.full), # Aplicamos la función a todos los nodos del grafo
+                    mode = "all") # Consideramos tanto las conexiones entrantes como salientes
+
+# Mostramos los primeros 30 nodos ordenados por su 'reach_2_step' en orden decreciente
+head(nodes[order(nodes$reach_2_step,
+                 decreasing = TRUE),], 
+     n = 30L)
+
+```
+
+### Centralidad de Cercanía (Closeness)
+
+Mide la cercanía promedio de un nodo a todos los demás nodos en la red.
+
+```{r}
+
+# Calculamos la centralidad de cercanía para todos los nodos en el grafo
+closeness(network.full, mode="all", weights=NA)
+# El parámetro 'mode="all"' significa que considera tanto las conexiones entrantes como salientes 
+# 'weights=NA' indica que no se están utilizando pesos en los bordes para este cálculo
+
+# Alternativa para calcular la centralidad de cercanía usando una función que puede ser personalizada
+centr_clo(network.full, mode="all", normalized=T)
+# 'centr_clo' es una función genérica que calcula la centralidad de cercanía, pero con un argumento 'normalized=T' que normaliza los valores de centralidad según el número de nodos en la red
+
+# Agregamos la centralidad de cercanía normalizada como una nueva columna en el dataframe 'nodes'
+nodes$closeness <- centr_clo(network.full, 
+                             mode="all", 
+                             normalized=T)$res
+
+# Visualizamos los top 20 nodos con mayor centralidad de cercanía
+head(nodes[order(nodes$closeness,
+                 decreasing = TRUE), 
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+# Calculamos y agregamos la centralidad de cercanía entrante, considerando solo las conexiones entrantes ('mode="in"')
+nodes$closeness_in <- centr_clo(network.full, 
+                                mode="in", 
+                                normalized=T)$res
+
+# Mostramos los top 20 nodos con mayor centralidad de cercanía entrante
+head(nodes[order(nodes$closeness_in,
+                 decreasing = TRUE),     
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+# Calculamos y agregamos la centralidad de cercanía saliente, considerando solo las conexiones salientes ('mode="out"')
+nodes$closeness_out <- centr_clo(network.full, 
+                                 mode="out", 
+                                 normalized=T)$res
+
+# Mostramos los top 20 nodos con mayor centralidad de cercanía saliente
+head(nodes[order(nodes$closeness_out,
+                 decreasing = TRUE),           
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+```
+
+### Centralidad de Intermediación (Betweenness)
+
+Mide cuántas veces un nodo actúa como un puente a lo largo del camino
+más corto entre otros dos nodos.
+
+```{r}
+
+# Calculamos la centralidad de intermediación para todos los nodos en el grafo
+betweenness(network.full, directed=T, weights=NA)
+# 'directed=T' indica que el grafo es dirigido, y la centralidad de intermediación se calcula considerando la dirección de las aristas
+# 'weights=NA' especifica que no se están utilizando pesos en las aristas para este cálculo
+
+# Almacenamos los valores de centralidad de intermediación en el dataframe 'nodes'
+nodes$betweenness <- betweenness(network.full, 
+                                 directed=T, weights=NA)
+
+# Mostramos los top 20 nodos con mayor centralidad de intermediación
+head(nodes[order(nodes$betweenness,
+                 decreasing = TRUE),           
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+```
+
+### Centralidad de Vector Propio (Eigenvector)
+
+Asigna una puntuación a cada nodo basada en la premisa de que las
+conexiones a nodos que son importantes por sí mismos contribuyen más al
+valor de la centralidad.
+
+```{r}
+
+# Calculamos la centralidad de vector propio para todos los nodos en el grafo
+eigen_centrality(network.full, directed=T, weights=NA)
+# 'directed=T' indica que el grafo es dirigido
+# 'weights=NA' especifica que no se están utilizando pesos en las aristas para este cálculo
+
+# Almacenamos los valores de centralidad de vector propio en el dataframe 'nodes'
+nodes$eigen <- eigen_centrality(network.full, 
+                                directed=T, weights=NA)$vector
+# '$vector' extrae los valores de centralidad de vector propio del resultado de 'eigen_centrality' y los almacena en la columna 'eigen' del dataframe 'nodes'
+
+# Mostramos los top 20 nodos con mayor centralidad de vector propio
+head(nodes[order(nodes$eigen,
+                 decreasing = TRUE),           
+           c(2, 4, 7:length(names(nodes)))], n = 20L)
+
+# Calculamos la centralidad de vector propio utilizando una función alternativa que permite normalización
+centr_eigen(network.full, directed=T, normalized=T)
+# 'centr_eigen' es una función alternativa que calcula la centralidad de vector propio pero con normalización
+# 'normalized=T' normaliza los valores de centralidad para que la suma de los cuadrados sea 1
+
+```
+
+```{r}
+
+# Guardamos el entorno de trabajo
+save.image("01_metricas.rda")
+
+```
+
+# Extraer subconjuntos del grafo
+
+Para el análisis de un subgrafo he decidido centrarme en **Jeffrey
+Skilling**.
+
+Jeffrey Skilling fue uno de los personajes centrales en el escándalo de
+Enron. Skilling se unió a Enron en 1990 y rápidamente ascendió en la
+compañía, convirtiéndose en presidente y director de operaciones (COO)
+en 1997, y finalmente en CEO en febrero de 2001.
+
+Durante el tiempo que Skilling fue CEO, Enron estaba alcanzando su pico
+en el mercado. Sin embargo, en agosto de 2001, Skilling renunció a su
+cargo de CEO por razones personales. Su renuncia fue repentina y levantó
+sospechas, aunque en ese momento, la mayoría de los detalles del fraude
+de Enron aún no habían salido a la luz.
+
+La renuncia de Skilling fue crucial porque ocurrió solo unos meses antes
+de que Enron se declarara en bancarrota en diciembre de 2001. Después de
+su salida, comenzaron a surgir detalles sobre la contabilidad
+fraudulenta y las prácticas de gestión de riesgos de la empresa, lo que
+con el tiempo llevó a su colapso.
+
+Después del colapso de Enron, Skilling fue acusado de varios delitos
+federales, incluidos fraude, conspiración y uso de información
+privilegiada. Fue condenado en 2006 y sentenciado a 24 años de prisión,
+aunque su sentencia fue posteriormente reducida a 14 años en 2013.
+
+```{r}
+
+# Primero verificamos si hay correos de Skilling en cualquier momento
+sum(edges.full$sender == "jeff.skilling@enron.com" | edges.full$receiver == "jeff.skilling@enron.com")
+
+```
+
+Podemos ver que Skilling tiene un total de 242 correos electrónicos
+enviados o recibidos, lo que es coherente porque fue una persona con
+posiciones de alto cargo en Enron durante varios años.
+
+Ahora nos centramos en la franja de tiempo que queremos analizar:
+
+```{r}
+
+# Filtramos los correos en torno a la fecha de renuncia de Skilling: Julio a Septiembre 2001
+mails.skilling <- edges.full[(edges.full$sender == "jeff.skilling@enron.com" &
+                              as.Date(edges.full$date.R) >= "2001-07-01 00:00:00" &
+                              as.Date(edges.full$date.R) <= "2001-09-30 00:00:00") |
+                             (edges.full$receiver == "jeff.skilling@enron.com" &
+                              as.Date(edges.full$date.R) >= "2001-07-01 00:00:00" &
+                              as.Date(edges.full$date.R) <= "2001-09-30 00:00:00"),
+                             ]
+
+# Ordenamos los correos por fecha
+mails.skilling <- mails.skilling[order(as.Date(mails.skilling$date.R)),]
+
+# Contamos el número de correos
+nrow(mails.skilling)
+
+```
+
+Hay 90 correos electrónicos en este rango de fechas, lo que sugiere que
+durante este período crítico de tiempo, hubo una cantidad significativa
+de correspondencia que involucró a Skilling, lo que puede reflejar la
+comunicación en torno a su renuncia y posiblemente la situación interna
+de la empresa durante esos meses turbulentos.
+
+```{r}
+
+# Creamos un subgrafo basado en los correos de Skilling
+nodes.with.skilling <- unique(c(mails.skilling$sender, mails.skilling$receiver))
+
+network.jeffrey.skilling <- graph.data.frame(mails.skilling[,c("sender", 
+                                                               "receiver", 
+                                                               "type", 
+                                                               "date", 
+                                                               "subject")],
+                                             directed = TRUE)
+
+# Imprimimos el resumen del subgrafo de Skilling
+print("Resumen del Subgrafo de Jeffrey Skilling:")
+print(summary(network.jeffrey.skilling))
+
+```
+
+El resumen del subgrafo creado a partir de los correos electrónicos de
+Jeffrey Skilling indica que tiene 24 vértices (nodos) y 90 aristas
+(enlaces), lo que sugiere que Jeffrey Skilling tuvo comunicación directa
+con 24 personas distintas durante el período de tiempo especificado.
+
+```{r}
+
+# Analizamos el tamaño del vecindario de Skilling para entender su alcance dentro de la empresa
+print("El tamaño del vecindario de Skilling a 1 paso de distancia es:")
+neighborhood.size(network.full, 
+                  order = 1, 
+                    nodes = V(network.full)$lastName == "Skilling")
+
+print("El tamaño del vecindario de Skilling a 2 pasos de distancia es:")
+neighborhood.size(network.full, 
+                  order = 2, 
+                  nodes = V(network.full)$lastName == "Skilling")
+
+print("El tamaño del vecindario de Skilling a 3 pasos de distancia es:")
+neighborhood.size(network.full, 
+                  order = 3, 
+                  nodes = V(network.full)$lastName == "Skilling")
+```
+
+Hemos calculado el tamaño del vecindario (neighbourhood) de Skilling a
+1, 2 y 3 pasos de distancia:
+
+-   A 1 paso de distancia, hay 34 nodos alcanzables, lo que significa
+    que Skilling tenía 34 contactos directos.
+
+-   A 2 pasos de distancia, el número aumenta a 140 nodos, indicando que
+    la red de Skilling se expande significativamente cuando incluimos
+    los contactos de sus contactos directos.
+
+-   A 3 pasos de distancia, hay 146 nodos, lo que muestra un pequeño
+    aumento comparado con el segundo paso, sugiriendo que casi todos los
+    nodos de la red pueden ser alcanzados con solo dos intermediarios
+    desde Skilling.
+
+```{r}
+
+# Exportamos el grafo de Skilling un archivo en formato GraphML para visualización en Gephi
+write.graph(network.jeffrey.skilling, file = "network_jeffrey_skilling.graphml", format = "graphml")
+
+# Guardamos el entorno de trabajo
+save.image("02_subgraphs_skilling.rda")
+
+```
+
+**Nota:** el análisis de este grafo se encuentra en el word adjuntado en
+la entrega.
+
+## Análisis de sentimiento
+
+```{r}
+
+# Cada fila en mails.skilling corresponde a un correo electrónico único
+# Añadimos una columna 'email_id' que será un identificador único para cada correo
+mails.skilling$email_id <- 1:nrow(mails.skilling)
+
+# Tokenizamos el texto del cuerpo del correo electrónico en palabras
+mails_skilling_tokens <- mails.skilling %>%
+  unnest_tokens(word, body)
+
+# Unimos los datos tokenizados con el léxico de sentimientos de Bing
+sentiment_analysis <- mails_skilling_tokens %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(email_id, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment_score = positive - negative)
+
+# Vemos los primeros registros de análisis de sentimiento
+head(sentiment_analysis)
+
+```
+
+Mostramos un histograma de la distribución de la puntuación de
+sentimientos de los correos electrónicos de Skilling:
+
+```{r}
+
+# Gráfico de histograma de la puntuación de sentimiento
+ggplot(data = sentiment_analysis, aes(x = sentiment_score)) +
+  geom_histogram(bins = 50, color = 'firebrick', fill = 'darkred') + 
+  scale_x_continuous(breaks = seq(min(sentiment_analysis$sentiment_score), 
+                                  max(sentiment_analysis$sentiment_score), by = 1)) +
+  xlab("Puntuación de Sentimiento") + 
+  ylab("Cantidad de Correos") + 
+  ggtitle("Distribución de Sentimiento en Correos Electrónicos de Skilling")
+```
+
+Podemos ver que la mayoría de los correos tienen una puntuación neutral
+cercana a cero, con un ligero pico en los correos positivos, como en el
+4 o en el 7. Esto sugiere que la mayoría de los correos contienen un
+lenguaje equilibrado o neutro, con una tendencia general hacia un tono
+positivo.
+
+Podemos ver que el correo con id 6 tiene un sentimiento negativo muy
+grande, de -15. Vamos a analizarlo con más profundidad:
+
+```{r}
+
+# Filtramos el correo con el ID 6
+correo_id_6 <- mails.skilling[mails.skilling$email_id == 6, ]
+
+# Vemos el contenido del correo
+print(correo_id_6$body)
+
+```
+
+El correo electrónico contiene discusiones sobre la situación económica
+y política en Brasil y Argentina, así como sobre las medidas que se
+están tomando para abordar diversas crisis y desafíos. Algunos puntos
+que pueden causar el alto sentimiento negativo son:
+
+-   Menciones de crisis y dilemas económicos: El correo aborda la crisis
+    económica y la difícil situación en Brasil y Argentina, discutiendo
+    dilemas como la decisión de aumentar las tasas de interés o esperar.
+
+-   Referencias a la incertidumbre y la falta de progreso: Se menciona
+    la incertidumbre sobre el resultado de las políticas económicas y la
+    falta de progreso en la resolución de los problemas. Por ejemplo, se
+    menciona al Ministro de Economía Cavallo en Argentina.
+
+-   Discusión sobre la necesidad de medidas urgentes y la falta de apoyo
+    político: El correo menciona la necesidad de tomar medidas urgentes
+    para abordar la crisis económica, pero también señala la falta de
+    apoyo político para ciertas políticas propuestas.
+
+-   Menciones de problemas financieros y estrategias de recaudación de
+    fondos: Se discuten problemas financieros, como la necesidad de
+    recaudar impuestos por adelantado y realizar intercambios de bonos
+    para cubrir déficits presupuestarios.
+
+## Personas con quien Jeff Skilling se comunicaba
+
+Vamos a estudiar con quién se ha comunicado más y menos Jeff Skilling, y
+analizaremos quienes eran algunas de estas personas y su papel en la
+empresa.
+
+```{r}
+
+# Obtenemos todos los nombres únicos de los campos de sender y receiver excluyendo a Jeff Skilling
+all_names <- c(unique(mails.skilling$sender[mails.skilling$sender != "jeff.skilling@enron.com"]),
+               unique(mails.skilling$receiver[mails.skilling$receiver != "jeff.skilling@enron.com"]))
+
+# Eliminamos duplicados
+all_names <- unique(all_names)
+
+print(all_names)
+```
+
+Buscamos el número de apariciones de los receiver:
+
+```{r}
+
+# Contamos las apariciones como receiver
+name_counts_receiver <- mails.skilling %>%
+  filter(receiver != "jeff.skilling@enron.com") %>%
+  count(receiver) %>%
+  rename(name = receiver, counts = n)
+```
+
+Buscamos el número de apariciones de los sender:
+
+```{r}
+
+# Contamos las apariciones como sender
+name_counts_sender <- mails.skilling %>%
+  filter(sender != "jeff.skilling@enron.com") %>%
+  count(sender) %>%
+  rename(name = sender, counts = n)
+```
+
+Combinamos el número de apariciones de receiver y sender:
+
+```{r}
+
+# Combinamos los recuentos de sender y receiver
+name_counts <- data.frame(name = all_names) %>%
+  left_join(name_counts_sender, by = "name") %>%
+  left_join(name_counts_receiver, by = "name") %>%
+  replace_na(list(counts.x = 0, counts.y = 0))
+```
+
+Obtenemos el total de apariciones de receiver y sender:
+
+```{r}
+
+# Sumamos los recuentos para obtener un total
+name_counts$total_counts <- rowSums(name_counts[, c("counts.x", "counts.y")], na.rm = TRUE)
+```
+
+```{r}
+
+# Ordenamos por el total de apariciones de forma descendente y eliminamos duplicados
+distinct_counts <- name_counts %>%
+  arrange(desc(total_counts)) %>%
+  distinct(name, .keep_all = TRUE)
+
+# Mostramos los resultados
+print(distinct_counts)
+```
+
+Podemos analizar la relación de Skilling con alguna de estas personas y
+su papel en la empresa:
+
+1.  **Steven J. Kean**: Siendo uno de los que más interacciones tuvo con
+    Skilling, Kean fue eventualmente el Jefe de Personal en Enron, lo
+    que implicaría que su comunicación frecuente con Skilling fue
+    relevante para la toma de decisiones en la empresa.
+
+2.  **Stanley Horton**: Con un número de interacciones igual que Kean,
+    Horton fue Presidente de Enron Gas Pipeline Group, y podemos ver que
+    mantenía mucha comunicación con Skilling, posiblemente discutiendo
+    asuntos relacionados con las operaciones de pipeline y su
+    optimización.
+
+3.  **Kenneth Lay**: Como el CEO de Enron, la fuerte comunicación con
+    Skilling (que era el COO y luego el CEO) tiene mucho sentido. Es el
+    que más correos recibe de Jeff Skilling.
+
+4.  **Greg Whalley**: Con una cantidad menor pero aún asi significativa
+    de intercambios, Whalley, que fue Presidente y COO de Enron,
+    seguramente trató temas operacionales y estratégicos con Skilling.
+
+5.  **Rick Buy**: Presenta menos correos con Skilling, pero como Chief
+    Risk Officer, Buy podría haber estado involucrado en la comunicación
+    sobre la gestión de riesgos y la toma de decisiones financieras
+    estratégicas.
+
+6.  **Louise Kitchen**: Su comunicación con Skilling, aunque no tan
+    frecuente, podría haber sido significativa debido a su papel en la
+    creación y gestión de Enron Online, la plataforma de comercio en
+    línea de la compañía.
+
+7.  **Jeff Dasovich**: Aunque parece haber tenido menos interacción,
+    como ejecutivo implicado en las regulaciones gubernamentales y
+    asuntos públicos, sus correos probablemente se relacionaron con la
+    estrategia de Enron frente a la regulación y la política energética.
+    Aún así, me ha sorprendido la poca cantidad de correos que Skilling
+    intercambiaba con Dasovich.
+
+## Temas tratados en algunos correos
+
+Primero, analizamos la estructura y la información de los datos donde
+tenemos los emails enviados y recibidos por Jeff Skilling:
+
+```{r}
+
+# Vemos las primeras filas del dataframe para inspeccionar los datos
+head(mails.skilling)
+
+# Obtenemos un resumen de la estructura del dataframe con la función str()
+str(mails.skilling)
+
+# Obtenemos un resumen de cada columna con la función summary()
+summary(mails.skilling)
+
+# Antes de elegir los id para estudiar algunos emails, voy a analizarlos por encima para elegir los más interesantes
+view(mails.skilling)
+```
+
+Vamos a analizar tres correos que me han parecido interesantes:
+
+### Correo 1
+
+```{r}
+
+# Indentificamos el correo electronico
+email_60835 <- mails.skilling[rownames(mails.skilling) == 60835,]
+print(email_60835)
+
+# Analizamos el contenido
+body_60835 <- mails.skilling$body[rownames(mails.skilling) == 60835]
+print(body_60835)
+```
+
+Este correo, enviado por Jeffrey Shankman, felicita a Jeff Skilling por
+su presentación en CNBC y sugiere compartir informes detallados sobre
+Sudamérica. Aborda la inestabilidad en Argentina y la falta de apoyo
+internacional, enfocándose en la estrategia de EE.UU. de priorizar el
+apoyo a Brasil sobre Argentina para estabilizar la región y por
+intereses políticos y económicos relacionados con México.
+
+### Correo 2
+
+```{r}
+
+# Indentificamos el correo electronico
+email_60836 <- mails.skilling[rownames(mails.skilling) == 60836,]
+print(email_60836)
+
+# Analizamos el contenido
+body_60836 <- mails.skilling$body[rownames(mails.skilling) == 60836]
+print(body_60836)
+```
+
+Jeffrey Shankman envió un correo a Jeff Skilling sugiriendo una reunión
+fuera de la oficina con altos ejecutivos para revisar negocios y
+estrategias, y expresó interés en alejarse y dialogar con el equipo
+durante un par de días.
+
+### Correo 3
+
+```{r}
+
+# Indentificamos el correo electronico
+email_60845 <- mails.skilling[rownames(mails.skilling) == 60845,]
+print(email_60845)
+
+# Analizamos el contenido
+body_60845 <- mails.skilling$body[rownames(mails.skilling) == 60845]
+print(body_60845)
+```
+
+Este correo es un poco diferente a los demás, pero me ha sorprendido
+porque Jeffrey Shankman envió un mensaje breve y personal a Jeff
+Skilling para felicitarlo por su compromiso.
+
+No intencionadamente, me he dado cuenta de que los tres correos que he
+analizado son entre Jeffrey Shankman y Jeff Skilling, lo que tiene
+lógica porque era el tercero con el que más se comunicaba. Además,
+podemos ver que tenían una relación tal vez más cercana que con otros
+empleados, como podemos ver reflejado en este último correo.
+
+También me he dado cuenta de que en los correos enviados por Jeff
+Skilling, hay muchas invitaciones a reuniones a sus empleados, ya que
+estos correos son del 7 de agosto de 2001, cuando todavía era CEO de
+Enron.
+
+Estas invitaciones son los últimos correos que aparecen enviados o
+recibidos por Jeff Skilling, lo que tiene sentido porque renunció a su
+puesto como CEO de Enron el 14 de agosto de 2001.
+
+# Reciprocidad y grafo social
+
+Analizamos de la reciprocidad en la red y examinamos las díadas (pares
+de nodos):
+
+```{r}
+
+print("Reciprodicad:")
+# La función 'reciprocity' calcula la proporción de aristas en la red que son recíprocas
+reciprocity(network.full)
+
+print("Diadas:")
+# La función 'dyad.census' cuenta el número de díadas mutuas, asimétricas y nulas en la red
+dyad.census(network.full)
+
+```
+
+La función reciprocity muestra que aproximadamente el 42.92% de las
+aristas en la red son recíprocas, lo que indica que un poco menos de la
+mitad de todas las comunicaciones tienen correspondencia en ambas
+direcciones (es decir, si A se comunica con B, B también se comunica con
+A).
+
+El dyad.census proporciona un desglose de los diferentes tipos de díadas
+que se encuentran en la red:
+
+-   Mutuas (mut): 761 pares de nodos tienen aristas en ambas
+    direcciones, lo que significa que hay una relación recíproca entre
+    ellos.
+
+-   Asimétricas (asym): 968 pares de nodos tienen una relación en una
+    sola dirección (A se comunica con B, pero B no se comunica con A o
+    viceversa).
+
+-   Nulas (null): 9297 pares de nodos no tienen ninguna conexión entre
+    ellos.
+
+Preparamos la red para convertirla de un grafo de comunicaciones (basado
+en correos electrónicos) a un grafo social (basado en diadas). En un
+grafo social, se requiere que las relaciones sean recíprocas para
+considerarse una relación social.
+
+```{r}
+
+# Extraemos pares únicos de comunicación y los ordenamos
+pairs <- as.data.frame(unique(edges.full[c(1,2)]))
+pairs <- pairs[order(pairs$sender, pairs$receiver),]
+
+# Ordenamos las aristas también por emisor y receptor
+edges.ordered <- edges.full[order(edges.full$sender, edges.full$receiver),]
+
+# Agregamos las aristas para calcular el peso de la comunicación entre dos nodos y los ordenamos
+weight <- aggregate(edges.ordered[,3],
+                    by = list(edges.ordered[,1], edges.ordered[,2]),
+                    length) 
+weight <- weight[order(weight$Group.1, weight$Group.2),]
+
+```
+
+Verificamos que los datos estén ordenados y coincidan correctamente:
+
+```{r}
+
+head(pairs, n = 5L)
+head(weight, n = 5L)
+tail(pairs, n = 5L)
+tail(weight, n = 5L)
+pairs[seq(236:248),]
+weight[seq(236:248),]
+
+```
+
+Combinamos los pares con su respectivo peso:
+
+```{r}
+
+# Combinamos y mostramos los primeros
+pairs$weight <- weight$x
+head(pairs)
+
+```
+
+Cada fila en pairs corresponde a un par único de remitente y receptor en
+la red, y la columna "weight" ahora contiene el peso del enlace entre
+estos pares de nodos.
+
+Creamos un nuevo grafo utilizando la tabla de pares con pesos como
+aristas y los nodos como vértices:
+
+```{r}
+
+# Creamos el grafo
+network.sna <- graph.data.frame(pairs, 
+                                directed = TRUE, 
+                                vertices = nodes_rich)
+# Mostramos un resumen del grafo
+summary(network.sna)
+
+```
+
+Comprobamos la reciprocidad y el censo de díadas en el nuevo grafo:
+
+```{r}
+
+reciprocity(network.sna)
+dyad.census(network.sna)
+
+```
+
+Las diadas son las mismas que en network.full, lo que tiene sentido
+porque este nuevo parte de él.
+
+Exportamos el grafo social para su posterior análisis en Gephi:
+
+```{r}
+
+# Para imponer que una arista sea recíproca y exista una relación social, convertimos el grafo dirigido a uno no dirigido
+network.social <- as.undirected(network.sna, 
+                                mode = "collapse", 
+                                edge.attr.comb = "sum")
+
+# Exportamos el grafo social a un archivo en formato GraphML para visualización en Gephi
+write.graph(network.social, file = "network_social_enron.graphml", format = "graphml")
+
+```
+
+```{r}
+
+# Guardamos el entorno de trabajo 
+save.image("03_grafo_social.rda")
+
+```
+
+# Comunidades
+
+Antes de calcular las comunidades:
+
+```{r}
+
+# Utilizamos el algoritmo de Louvain para detectar comunidades en el grafo
+communities <- multilevel.community(network.social)
+
+# Creamos un dataframe para almacenar los resultados de las comunidades
+comms.df <- data.frame(row.names = seq(1:149))
+comms.df$Email_id <- communities$names  # Asignamos identificadores de correo/nodos a 'Email_id'
+comms.df$community <- communities$membership  # Asignamos membresía de la comunidad a cada nodo
+
+```
+
+Añadimos la información de la comunidad al dataframe de nodos existente:
+
+```{r}
+
+nodes.def <- merge(nodes_rich, comms.df, 
+                   by.x = "Email_id", 
+                   by.y = "Email_id")
+
+# Exploramos la estructura del dataframe actualizado con las comunidades
+str(nodes.def)
+# Vemos las primeras entradas del dataframe actualizado
+head(nodes.def)
+
+```
+
+```{r results='hide', fig.keep='none'}
+
+# Creamos una tabla de frecuencias para las comunidades
+community_counts <- as.data.frame(table(nodes.def$community))
+
+# Usamos ggplot2 para hacer un gráfico de barras 
+ggplot(community_counts, aes(x = Var1, y = Freq)) +
+  geom_bar(stat = "identity", fill = "steelblue") +  # Dibujamos las barras
+  labs(x = "Comunidad", y = "Numero de Nodos",  # Etiquetas para los ejes
+       title = "Distribución de los Nodos en las Comunidades",  
+       subtitle = "Derivado de análisis de Social Network") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotamos las etiquetas del eje x 
+
+# Añadimos la membresía de la comunidad a los nodos en el objeto igraph
+V(network.social)$community <- communities$membership
+
+```
+
+![](Entrega/Imágenes/distribucion_nodos_comunidades.png)
+
+La Comunidad 3 tiene el mayor número de nodos en el contexto del
+análisis de la red social de los empleados de Enron, por lo que podría
+ser el grupo más central o activo en términos de comunicaciones. Esto
+sugiere que los empleados en esta comunidad estaban altamente
+interconectados, posiblemente sirviendo como un núcleo central para la
+colaboración o la toma de decisiones.
+
+```{r}
+
+# Guardamos el entorno de trabajo 
+save.image("04_comunidades.rda")
+
+```
+
+# Análisis de la comunidad 3
+
+Consideré estudiar la comunidad a la que pertenece Skilling.
+
+```{r}
+
+# Inicializamos el número de comunidad de Skilling como NA para manejar el caso de que no se encuentre
+skilling_community_number <- NA
+
+# Iteramos a través de cada comunidad para encontrar el correo electrónico de Skilling
+for (community_number in seq_along(communities)) {
+  if ("jeff.skilling@enron.com" %in% communities[[community_number]]) {
+    skilling_community_number <- community_number
+    break  # Dejamos de iterar una vez se encuentre a Skilling
+  }
+}
+
+# Verificamos si encontramos a Skilling en alguna comunidad 
+if (!is.na(skilling_community_number)) {
+  print(paste("Jeffrey Skilling está en la comunidad número:", skilling_community_number))
+} else {
+  print("Jeffrey Skilling no se encontró en ninguna comunidad.")
+}
+
+```
+
+Como podemos ver en el gráfico, la comunidad 3 es la que más nodos
+tiene, por lo que puede que su análisis sea más complicado.
+
+Filtramos los miembros de la Comunidad 3 del dataframe que contiene la
+membresía de la comunidad:
+
+```{r}
+
+# Filtramos para obtener solo los miembros de la Comunidad 3 
+community_3 <- subset(nodes.def, community == 3) 
+```
+
+Analizamos la Estructura y Roles de la Comunidad:
+
+```{r}
+
+# Resumen de cargos y roles dentro de la Comunidad 3
+table(community_3$role) 
+table(community_3$position) 
+```
+
+Distribución de cargos y roles dentro de la Comunidad 3:
+
+-   Hay 28 personas que tienen el cargo de "Chief Operating Officer".
+
+-   Hay 1 persona que tiene el cargo de "Chief Risk Management Officer".
+
+-   Hay 1 persona con el rol de "Associate".
+
+-   Hay 1 persona con el cargo de "Energy Marketing and Trading
+    Florida".
+
+-   Hay 1 persona con el cargo de "Real Time Trading Desk".
+
+-   Hay 1 persona con el cargo de "Senior Specialist Logistics".
+
+-   Hay 1 persona con el cargo de "Enron Online".
+
+-   Hay 2 personas que ocupan el cargo de "Risk Management Head".
+
+-   Hay 1 persona con el cargo de "Term".
+
+Calculamos métricas de redes para cada miembro de la Comunidad 3 como la
+centralidad de grado, cercanía, y betweenness, que pueden indicar la
+importancia de cada individuo dentro de la comunidad:
+
+```{r}
+
+# Subgrafo de la Comunidad 3
+community_3_subgraph <- induced_subgraph(network.social,
+                                         V(network.social)$name %in% community_3$Email_id)  
+
+# Calculamos las métricas para el subgrafo 
+community_3_degrees <- degree(community_3_subgraph) 
+community_3_closeness <- closeness(community_3_subgraph) 
+community_3_betweenness <- betweenness(community_3_subgraph)  
+
+# Imprimimos las métricas de grado 
+print("Grados de la Comunidad 3:") 
+print(community_3_degrees)  
+
+# Imprimimos las métricas de cercanía 
+print("Cercanía de la Comunidad 3:") 
+print(community_3_closeness)  
+
+# Imprimimos las métricas de betweenness 
+print("Intermediación de la Comunidad 3:") 
+print(community_3_betweenness) 
+```
+
+-   Centralidad de Grado: Indica el número de conexiones directas que
+    tiene cada nodo. Los individuos con una puntuación más alta, como
+    sally.beck\@enron.com con 45 y liz.taylor\@enron.com con 38, son los
+    más conectados dentro de la red.
+
+-   Centralidad de Cercanía: Refleja cómo tan cerca está un nodo de
+    todos los otros nodos en la red. Un valor más alto indica que un
+    individuo puede difundir información a otros miembros de la red de
+    manera más rápida y eficiente. lavorato\@enron.com, con un valor de
+    aproximadamente 0.006024096, es el que tiene mejor posición para
+    acceder y distribuir información.
+
+-   Centralidad de Betweenness: Mide la frecuencia con la que un nodo
+    actúa como puente a lo largo del camino más corto entre dos otros
+    nodos. Un valor alto, como el de lavorato\@enron.com con 290.3142857
+    y kenneth.lay\@enron.com con 122.6011905, sugiere que controlan el
+    flujo de información.
+
+Interpretamos las métricas en el contexto de los roles y cargos: Los
+individuos con mayor centralidad pueden ser puntos clave en la difusión
+de información, y aquellos con roles o cargos de alto nivel podrían
+tener un impacto significativo en la dinámica de la comunidad.
+
+```{r}
+
+# Añadimos las métricas al dataframe de la comunidad 
+community_3$degree <- community_3_degrees[V(community_3_subgraph)$name] 
+community_3$closeness <- community_3_closeness[V(community_3_subgraph)$name] 
+community_3$betweenness <- community_3_betweenness[V(community_3_subgraph)$name]  
+
+# Analizamos los datos 
+summary(community_3) 
+```
+
+Visualizamos la red de la comunidad 3:
+
+```{r}
+
+# Exportamos el grafo de la comunidad a un archivo en formato GraphML para visualización en Gephi 
+write.graph(community_3_subgraph, file = "network_community_3.graphml", format = "graphml") 
+```
+
+**Nota:** el análisis de este grafo se encuentra en el word adjuntado en
+la entrega.
+
+Análisis de interacciones:
+
+```{r fig.width=8, fig.height=10, results='hide', fig.keep='none'}
+
+# Definimos el tamaño del gráfico 
+par(oma=c(8,5,5,10))    
+
+# Calculamos la matriz de adyacencia para identificar patrones de interacción
+adj_matrix_com_3 <- as_adjacency_matrix(community_3_subgraph, attr = "weight", sparse = FALSE)  
+
+# Creamos un heatmap basado en la matriz de adyacencia 
+heatmap(adj_matrix_com_3,         
+        Rowv = NA, Colv = NA,     # No mostrar dendrogramas         
+        scale = "none",           # No escalar los datos         
+        main = "Heatmap de Interacciones en la comunidad 3",         
+        cex.lab = 0.1             # Tamaño para las etiquetas de los ejes x e y 
+        ) 
+```
+
+![](Entrega/Imágenes/heatmap_interacciones_comunidad_3.png)
+
+En el heatmap, cada casilla representa la intensidad de las
+interacciones entre dos individuos a través de correos electrónicos. Las
+filas y columnas están etiquetadas con direcciones de correo electrónico
+de empleados de Enron. Cuanto más oscuro sea el color de una casilla,
+mayor será la cantidad de interacciones entre los dos individuos
+correspondientes.
+
+Por ejemplo, podemos ver que Louise Kitchen y Sally Beck interaccionaron
+mucho. También podemos ver que Kitchen interacciona con alguien que debe
+de estar entre Campbell y Lay, pero como en esta comunidad hay muchas
+más personas, no aparecen todos los empleados, por lo que lo podremos
+estudiar mejor en Gephi.
+
+Análisis de influencia:
+
+```{r}
+
+# Calculamos métricas de PageRank para identificar nodos influyentes 
+pagerank_scores_com_3 <- page_rank(community_3_subgraph)$vector  
+
+# Visualizamos nodos más influyentes en la comunidad 3
+top_influential_com_3 <- names(head(sort(pagerank_scores_com_3, decreasing = TRUE), 5)) 
+print("Nodos más influyentes en la comunidad 3:") 
+print(top_influential_com_3) 
+```
+
+Analizamos el papel de estas personas en el caso Enron:
+
+1.  **Louise Kitchen**: No hay información específica sobre su papel en
+    Enron.
+
+2.  **Liz Taylor**: No hay información específica sobre su papel en
+    Enron.
+
+3.  **Sally Beck**: Sally Beck fue vicepresidenta de Enron Broadband
+    Services (EBS), una división de Enron que se centraba en el
+    desarrollo de servicios de banda ancha y tecnologías de Internet. Su
+    rol implicaba liderar las estrategias comerciales y operativas de
+    EBS.
+
+4.  **Kevin M. Presto**: No hay información específica sobre su papel en
+    Enron.
+
+5.  **John Arnold**: John Arnold es un comerciante de energía que
+    trabajó en Enron y es conocido por sus habilidades en el mercado
+    energético. Aunque no fue acusado de delitos en relación con el
+    colapso de Enron, su nombre se menciona en varias investigaciones y
+    juicios relacionados con la empresa.
+
+## Conclusiones de la actividad de la comunidad 3
+
+A partir de los datos que hemos obtenido con cargos, roles y métricas
+individuales, he llegado a las siguientes conclusiones:
+
+| La Comunidad 3 de Enron se caracteriza por una intensa actividad en operaciones y comercio, evidenciada por la gran cantidad de "Chief Operating Officers". Un "Chief Risk Management Officer" y dos "Risk Management Head" muestran la importancia de la gestión de riesgos. La especialización en mercados específicos se puede encontrar en un cargo dedicado a "Energy Marketing and Trading Florida", mientras que el comercio ágil y digital se refleja en los puestos de "Real Time Trading Desk" y "Enron Online". Por último, la logística y la planificación estratégica están implicadas en los roles de "Senior Specialist Logistics" y "Term".
+
+# Análisis de la comunidad 1
+
+He decidido analizar a fondo la comunidad 1, porque, como podemos ver en
+el gráfico de arriba, es una comunidad que no tiene muchos nodos, lo que
+nos facilitará el análisis de las comunicaciones, pero tampoco es la que
+menos nodos tiene, de forma que podremos estudiar suficientes
+comunicaciones.
+
+Filtramos los miembros de la Comunidad 1 del dataframe que contiene la
+membresía de la comunidad:
+
+```{r}
+
+# Filtramos para obtener solo los miembros de la Comunidad 1
+community_1 <- subset(nodes.def, community == 1)
+
+```
+
+Analizamos la Estructura y Roles de la Comunidad:
+
+```{r}
+
+# Resumen de cargos y roles dentro de la Comunidad 1
+table(community_1$role)
+table(community_1$position)
+
+```
+
+Distribución de cargos y roles dentro de la Comunidad 1:
+
+-   Hay 7 personas que tienen el cargo de "Analyst".
+-   Hay 1 persona que tiene el cargo de "Senior Analyst Cash".
+-   Hay 1 persona con el rol de "Analyst Risk Management".
+-   Hay 1 persona con el título de "Specialist".
+-   Hay 1 persona con el título de "Sr. Specialist".
+-   Hay 1 persona que ocupa el cargo de "Cash Analyst".
+
+Calculamos métricas de redes para cada miembro de la Comunidad 1 como la
+centralidad de grado, cercanía, y betweenness, que pueden indicar la
+importancia de cada individuo dentro de la comunidad:
+
+```{r}
+
+# Subgrafo de la Comunidad 1
+community_1_subgraph <- induced_subgraph(network.social,
+                                         V(network.social)$name %in% community_1$Email_id)
+
+# Calculamos las métricas para el subgrafo
+community_1_degrees <- degree(community_1_subgraph)
+community_1_closeness <- closeness(community_1_subgraph)
+community_1_betweenness <- betweenness(community_1_subgraph)
+
+# Imprimimos las métricas de grado
+print("Grados de la Comunidad 1:")
+print(community_1_degrees)
+
+# Imprimimos las métricas de cercanía
+print("Cercanía de la Comunidad 1:")
+print(community_1_closeness)
+
+# Imprimimos las métricas de betweenness
+print("Intermediación de la Comunidad 1:")
+print(community_1_betweenness)
+
+```
+
+-   Centralidad de Grado: Indica el número de conexiones directas que
+    tiene cada nodo. Los individuos con una puntuación más alta, como
+    [bill.williams\@enron.com](mailto:bill.williams@enron.com){.email}
+    con 14 y
+    [kate.symes\@enron.com](mailto:kate.symes@enron.com){.email} con 13,
+    son los más conectados dentro de esta comunidad.
+
+-   Centralidad de Cercanía: Refleja cómo tan cerca está un nodo de
+    todos los otros nodos en la red. Un valor más alto indica que un
+    individuo puede difundir información a otros miembros de la red de
+    manera más rápida y eficiente.
+    [Craig.dean\@enron.com](mailto:Craig.dean@enron.com){.email}, con un
+    valor de aproximadamente 0.01786, es el que tiene mejor posición
+    para acceder y distribuir información.
+
+-   Centralidad de Betweenness: Mide la frecuencia con la que un nodo
+    actúa como puente a lo largo del camino más corto entre dos otros
+    nodos. Un valor alto, como el de
+    [craig.dean\@enron.com](mailto:craig.dean@enron.com){.email} con
+    47.33 y
+    [monika.causholli\@enron.com](mailto:monika.causholli@enron.com){.email}
+    con 38.17, sugiere que controlan el flujo de información.
+
+Interpretamos las métricas en el contexto de los roles y cargos: Los
+individuos con mayor centralidad pueden ser puntos clave en la difusión
+de información, y aquellos con roles o cargos de alto nivel podrían
+tener un impacto significativo en la dinámica de la comunidad.
+
+```{r}
+
+# Añadimos las métricas al dataframe de la comunidad
+community_1$degree <- community_1_degrees[V(community_1_subgraph)$name]
+community_1$closeness <- community_1_closeness[V(community_1_subgraph)$name]
+community_1$betweenness <- community_1_betweenness[V(community_1_subgraph)$name]
+
+# Analizamos los datos
+summary(community_1)
+
+```
+
+Visualizamos la red de la comunidad 1:
+
+```{r}
+
+# Exportamos el grafo de la comunidad a un archivo en formato GraphML para visualización en Gephi
+write.graph(community_1_subgraph, file = "network_community_1.graphml", format = "graphml")
+
+```
+
+**Nota:** el análisis de este grafo se encuentra en el word adjuntado en
+la entrega.
+
+Análisis de interacciones:
+
+```{r fig.width=8, fig.height=10}
+
+# Definimos el tamaño del gráfico
+par(oma=c(8,5,5,10))  
+
+# Calculamos la matriz de adyacencia para identificar patrones de interacción
+adj_matrix_com_1 <- as_adjacency_matrix(community_1_subgraph, attr = "weight", sparse = FALSE)
+
+# Creamos un heatmap basado en la matriz de adyacencia
+heatmap(adj_matrix_com_1,
+        Rowv = NA, Colv = NA,     # No mostrar dendrogramas
+        scale = "none",           # No escalar los datos
+        main = "Heatmap de Interacciones en la comunidad 1",
+        cex.lab = 0.5             # Tamaño para las etiquetas de los ejes x e y
+)
+
+```
+
+En el heatmap, cada casilla representa la intensidad de las
+interacciones entre dos individuos a través de correos electrónicos. Las
+filas y columnas están etiquetadas con direcciones de correo electrónico
+de empleados de Enron. Cuanto más oscuro sea el color de una casilla,
+mayor será la cantidad de interacciones entre los dos individuos
+correspondientes.
+
+Por ejemplo, podemos ver que Diana Scholtes y Cara Semperger
+interaccionaron mucho, así como Diana Scholtes con Sean Crandall.
+
+Análisis de influencia:
+
+```{r}
+
+# Calculamos métricas de PageRank para identificar nodos influyentes
+pagerank_scores_com_1 <- page_rank(community_1_subgraph)$vector
+
+# Visualizamos nodos más influyentes
+top_influential_com_1 <- names(head(sort(pagerank_scores_com_1, decreasing = TRUE), 5))
+print("Nodos más influyentes en la comunidad 1:")
+print(top_influential_com_1)
+
+```
+
+Analizamos el papel de estas personas en el caso Enron:
+
+1.  **Bill Williams**: Vicepresidente de comercio de Enron, implicado en
+    transacciones controvertidas.
+
+2.  **Cara Semperger**: Empleada de Enron en el área de comercio de
+    energía, papel exacto no tan claro.
+
+3.  **Kate Symes**: Trabajadora de recursos humanos en Enron.
+
+4.  **Diana Scholtes**: Empleada de contabilidad en Enron, papel exacto
+    no tan claro.
+
+5.  **Sean Crandall**: Empleado de Enron en el departamento de comercio
+    de energía, implicado en la red de comunicaciones internas de la
+    empresa durante el escándalo Enron.
+
+## Conclusiones de la actividad de la comunidad 1
+
+A partir de los datos que hemos obtenido con cargos, roles y métricas
+individuales, he llegado a las siguientes conclusiones:
+
+| La Comunidad 1 en Enron parece ser un núcleo de análisis y especialización en finanzas. Con siete "Analysts" y un "Senior Analyst Cash", se puede observar un fuerte enfoque en las finanzas operativas y la gestión de efectivo. Un "Analyst Risk Management" indica un compromiso con la evaluación y el control de riesgos financieros. La presencia de un "Specialist" y un "Sr. Specialist" sugiere que se centran en áreas específicas, posiblemente vinculadas a la operativa o estrategia financiera. Finalmente, el "Cash Analyst" reafirma la concentración en la liquidez y el flujo de caja, esencial para cualquier entidad corporativa.
+
+# Análisis de momento concreto del tiempo
+
+## Colapso de las acciones de Enron y la quiebra de Enron
+
+El último trimestre de 2001 es crítico para entender la caída de Enron.
+Durante estos meses, se revelaron las prácticas contables cuestionables
+que llevaron a la empresa desde la cima de Wall Street a la bancarrota.
+En diciembre de 2001, Enron se declaró en bancarrota.
+
+He elegido este periodo porque ofrece una visión de la reacción interna
+ante la crisis, por lo que es un buen escenario para estudiar la
+comunicación y la dinámica organizativa en momentos de colapso
+financiero.
+
+```{r}
+
+# Filtramos correos por fecha para enfocarnos en el último trimestre de 2001
+edges.filtered <- edges.full %>%
+  mutate(date.R = as.Date(date.R, format = "%Y-%m-%d %H:%M:%S")) %>%
+  filter(date.R >= as.Date("2001-10-01") & date.R <= as.Date("2001-12-31"))
+
+head(edges.filtered)
+```
+
+```{r}
+
+# Gráfico de la frecuencia de correos por fecha
+ggplot(edges.filtered, aes(x = date.R)) +
+  geom_histogram(stat = "count", fill = "blue", color = "black", binwidth = 1) +  # binwidth de 1 día
+  scale_x_date(date_breaks = "1 week", date_labels = "%d-%m-%Y") +
+  theme_minimal() +
+  labs(title = "Frecuencia de Correos por Fecha",
+       x = "Fecha",
+       y = "Cantidad de Correos",
+       caption = "Datos del último trimestre de 2001") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Posibles causas de los picos en la cantidad de correos:
+
+-   **Entre 01-10-2001 y 22-10-2001:** El 16 de octubre, Enron anunció
+    una pérdida neta de \$1.01 mil millones y una reducción de \$1.2 mil
+    millones en el patrimonio de los accionistas debido a la recompra de
+    acciones comunes asociadas con entidades de propósito especial.
+    Estos anuncios reflejaban ajustes y errores contables que
+    posteriormente requerirían que Enron reformulara sus estados
+    financieros, lo que supuso un paso significativo hacia su eventual
+    colapso.
+
+-   **Entre 19-11-2001 y 26-11-2001:** El 19 de noviembre, Enron reveló
+    un plan de acción para la reestructuración de la empresa que
+    impactaría negativamente sus ganancias del cuarto trimestre. La
+    situación se agravó cuando varias agencias rebajaron la calificación
+    crediticia de la compañía a grado especulativo el 28 de noviembre,
+    lo que llevó a Dynegy a terminar su acuerdo de fusión con Enron.
+    Estos eventos marcaron un punto de inflexión crítico en la crisis de
+    Enron, que llevaron a su declaración de quiebra el 2 de diciembre de
+
+    2001. 
+
+Cabe destacar que la disminución de correos hacia finales de diciembre
+puede deberse a que Enron estaba en bancarrota, que se declaró el 2 de
+diciembre de 2001.
+
+Se me ha ocurrido hacer un nuevo filtrado sobre los correos de estas
+fechas, filtrando los correos a partir de unas palabras clave
+relacionadas con el **colapso, la crisis financiera y la corrupción**:
+
+```{r}
+
+# Lista de palabras clave relacionadas con el colapso de Enron y crisis financieras
+keywords <- c("bankruptcy", "fraud", "collapse", "scandal", "illegal", 
+              "bribery", "corruption", "insolvency", "investigation",
+              "debt", "litigation", "bankrupt", "solvency", "crisis")
+
+# Creamos una expresión regular con todas las palabras clave
+keyword_pattern <- paste(keywords, collapse = "|")
+
+# Filtramos correos que contienen alguna de las palabras clave
+correos_crisis <- edges.filtered %>%
+  filter(grepl(keyword_pattern, body, ignore.case = TRUE))
+
+# Vemos los resultados filtrados
+View(correos_crisis)
+```
+
+```{r}
+
+# Convertimos el data frame 'correos_crisis' a un objeto de grafo
+network.graph <- graph_from_data_frame(correos_crisis, directed = TRUE)
+
+# Exportamos el grafo a un archivo en formato GraphML para visualización en Gephi
+write.graph(network.graph, file = "enron_crisis_q4.graphml", format = "graphml")
+```
+
+**Nota:** el análisis de este grafo se encuentra en el word adjuntado en
+la entrega.
+
+Con la función view he podido ver los correos, y he destacado algunos en
+los que se puede ver claramente la evidencia de la caída de Enron:
+
+### Correo 1
+
+```{r}
+
+# Indentificamos el correo electronico
+email_109 <- correos_crisis[rownames(correos_crisis) == 109,]
+print(email_109)
+
+# Analizamos el contenido
+body_109 <- correos_crisis$body[rownames(correos_crisis) == 109]
+print(body_109)
+
+# Obtenemos el papel como empleados del emisor y el receptor en Enron
+empleados_enron <- nodes_rich %>%
+  filter(email_id_sin_arroba %in% c("keith.holst", "phillip.k.ellen")) %>%
+  select(email_id_sin_arroba, status.x)
+
+print(empleados_enron)
+```
+
+En el correo, Keith Holst, director de Enron, escribe a Phillip K.
+Ellen, manager en Enron, el 14 de noviembre de 2001. Holst expresa su
+preocupación por la caída de Enron y las repercusiones personales,
+enfatizando su propia integridad y contrastándola con las malas
+prácticas de la compañía.
+
+El correo trata sobre la traición de la confianza y la información
+errónea proporcionada por Enron, que llevó a los empleados a tomar
+decisiones de vida basadas en datos financieros incorrectos. Holst hace
+una demanda personal para que se compense su inversión basada en la
+equidad de la compañía, y sugiere una reevaluación de los contratos de
+los empleados dadas las circunstancias.
+
+### Correo 2
+
+```{r}
+
+# Indentificamos el correo electronico
+email_66 <- correos_crisis[rownames(correos_crisis) == 66,]
+print(email_66)
+
+# Analizamos el contenido
+body_66 <- correos_crisis$body[rownames(correos_crisis) == 66]
+print(body_66)
+
+# Obtenemos el papel como empleados del emisor y el receptor en Enron
+empleados_enron <- nodes_rich %>%
+  filter(email_id_sin_arroba %in% c("mike.grigsby", "tori.kuykendall")) %>%
+  select(email_id_sin_arroba, status.x)
+
+print(empleados_enron)
+```
+
+El correo es enviado por Mike Grigsby, manager en Enron, el 27 de
+diciembre de 2001, es decir, Enron ya se había declarado en bancarota.
+He visto que este correo es enviado a varias personas, por lo que
+seguramente era un comunicado general para los empleados.
+
+El correo de Grigsby, tras la declaración de bancarrota de la empresa,
+sugiere la organización de reuniones informales diarias para discutir la
+situación del mercado y cómo la compañía podría continuar operando. La
+mención de las revisiones diarias del los balances de almacenamiento y
+los precios indica un esfuerzo por mantener alguna forma de normalidad
+operativa y preparación para las oportunidades de mercado, a pesar de la
+bancarrota.
+
+### Correo 3
+
+```{r}
+
+# Indentificamos el correo electronico
+email_75 <- correos_crisis[rownames(correos_crisis) == 75,]
+print(email_75)
+
+# Analizamos el contenido
+body_75 <- correos_crisis$body[rownames(correos_crisis) == 75]
+print(body_75)
+
+# Obtenemos el papel como empleados del emisor y el receptor en Enron
+empleados_enron <- nodes_rich %>%
+  filter(email_id_sin_arroba %in% c("shelley.corman", "lynn.blair")) %>%
+  select(email_id_sin_arroba, status.x)
+
+print(empleados_enron)
+```
+
+El correo es enviado por Shelley Corman, vicepresidenta en Enron, a Lynn
+Blair, directora en Enron, el 2 de diciembre de 2001, es decir, el día
+que Enron se declaró en bancarrota.
+
+El correo es un mensaje en nombre de Ken Lay, que anima a los empleados
+a seguir trabajando, mencionando las protecciones salariales que ofrece
+la ley de bancarrota y la intención de la empresa de cumplir con estas
+obligaciones. Reconoce el estrés que esta incertidumbre causa y promete
+comunicar cualquier actualización sobre el estado de empleo de los
+trabajadores. Además, se compromete a ayudar a los empleados despedidos
+a encontrar nuevos trabajos.
+
+En este correo se puede apreciar perfectamente la situación de
+incertidumbre y angustia que vivían los empleados de Enron durante su
+colapso.
+
+### Correo 4
+
+```{r}
+
+# Indentificamos el correo electronico
+email_225 <- correos_crisis[rownames(correos_crisis) == 225,]
+print(email_225)
+
+# Analizamos el contenido
+body_225 <- correos_crisis$body[rownames(correos_crisis) == 225]
+print(body_225)
+
+# Obtenemos el papel como empleados del emisor y el receptor en Enron
+empleados_enron <- nodes_rich %>%
+  filter(email_id_sin_arroba %in% c("drew.fossum", "steven.harris")) %>%
+  select(email_id_sin_arroba, status.x)
+
+print(empleados_enron)
+```
+
+El correo es enviado por Drew Fossum a Steven Harris, ambos
+vicepresidentes en Enron, el 2 de diciembre de 2001, es decir, el día
+que Enron se declaró en bancarrota.
+
+Fossum menciona la necesidad de que el control de gas y el equipo
+comercial estén en alerta máxima para evitar ser perjudicados por las
+contrapartes, anticipando que algunos podrían intentar aprovecharse de
+la situación de Enron. Habla de "persuadir" o "forzar" para evitar
+perjuicios, reflejando la necesidad de estrategias firmes frente a las
+reacciones del mercado. La mención de posibles "operational issues" y la
+falta de disposiciones de penalización en su infraestructura indica
+preocupación por la posibilidad de que otras compañías reduzcan o
+retengan suministros de gas. La posible necesidad de intervención de
+emergencia por parte de la FERC (Federal Energy Regulatory Commission)
+muestra la gravedad de la situación para Enron en esos momentos.
+
+# Conclusión
+
+El estudio del caso de Enron, a través de la correspondencia entre
+empleados y eventos clave, me ha parecido muy interesante, ya que se
+puede observar una compleja red de decisiones y comunicaciones internas
+en medio de una creciente crisis.
+
+El análisis de correos muestra intentos de mantener operaciones
+comerciales, la moral de los empleados y una estrategia frente a la
+inminente bancarrota.
+
+Mi análisis sobre Jeff Skilling, CEO que desempeñó un papel central en
+la conducción de la empresa durante el periodo previo al colapso, me
+motivó a leer e informarme más sobre el caso Enron, las consecuencias
+para los empleados y las penas de cárcel para aquellos que estuvieron
+involucrados en la corrupción, como es el caso de Skilling.
+
+Me ha parecido muy curioso como, a partir de unos correos electrónicos y
+unos empleados, se puede obtener mucha información sobre una situación
+tan compleja como fue el caso Enron.
+
+Por ejemplo, la última parte del trabajo en la que escojo los últimos
+meses de 2001 para analizarlos más a fondo, me ha sorprendido mucho, ya
+que he encontrado correos que dejan ver perfectamente la crisis por la
+que estaba pasando la empresa en esa época y la preocupación de los
+empleados, así como las medidas y las rutas de acción que se decidieron
+tomar en base a esto.
+
+Pensaba que los correos no iban a dar tantos detalles sobre estos temas
+tan delicados, pero me ha encantado que sí que tuvieran información
+sobre este periodo y la caída final en bancarrota, y que por lo tanto
+los haya podido analizar.
